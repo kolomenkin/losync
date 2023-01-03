@@ -13,10 +13,14 @@ public:
     cheap_function() = delete;
     cheap_function(const cheap_function&) = delete;
 
-    template <typename TRef, typename = std::enable_if_t<std::is_invocable<TRef, Args...>::value>,
-              typename = std::enable_if_t<std::is_same<typename std::invoke_result<TRef, Args...>::type, Ret>::value>>
+    template <typename TRef>
     explicit cheap_function(TRef&& obj)
     {
+        static_assert(std::is_invocable<TRef, Args...>::value,
+                      "Provided object is not callable or it has incompatible arguments");
+        static_assert(std::is_same<typename std::invoke_result<TRef, Args...>::type, Ret>::value,
+                      "Provided callable object has incorrect return type");
+
         static_assert(std::is_move_constructible<TRef>::value);
         static_assert(!std::is_const<TRef>::value);
         static_assert(!std::is_lvalue_reference<TRef>::value, "It seems you forgot to wrap argument with std::move");
@@ -55,10 +59,14 @@ public:
 
     cheap_function& operator=(const cheap_function&) = delete;
 
-    template <typename TRef, typename = std::enable_if_t<std::is_invocable<TRef, Args...>::value>,
-              typename = std::enable_if_t<std::is_same<typename std::invoke_result<TRef, Args...>::type, Ret>::value>>
+    template <typename TRef>
     cheap_function& operator=(TRef&& obj)
     {
+        static_assert(std::is_invocable<TRef, Args...>::value,
+                      "Provided object is not callable or it has incompatible arguments");
+        static_assert(std::is_same<typename std::invoke_result<TRef, Args...>::type, Ret>::value,
+                      "Provided callable object has incorrect return type");
+
         static_assert(std::is_move_constructible<TRef>::value);
         static_assert(!std::is_const<TRef>::value);
         static_assert(!std::is_lvalue_reference<TRef>::value, "It seems you forgot to wrap argument with std::move");
@@ -149,7 +157,7 @@ private:
     constexpr static size_t alignValue = alignof(std::max_align_t);
     constexpr static size_t sizeOfWrapperBuffer = 256;
     static_assert(sizeOfWrapperBuffer % alignValue == 0,
-                  "sizeOfBuffer should be greater and a multiple of alignValue to optimize memory usage");
+                  "size of buffer should be greater and a multiple of alignValue to optimize memory usage");
 
     alignas(alignValue) char wrapperBuffer[sizeOfWrapperBuffer];
 };
