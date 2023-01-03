@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(losync)
 
+include(cmake/compiler.cmake)
+
 add_subdirectory(src)
 
 option(LOSYNC_ENABLE_BENCHMARKS "Build Losync benchmark binaries" OFF)
