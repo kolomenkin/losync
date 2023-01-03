@@ -1,4 +1,7 @@
-cmake_minimum_required(VERSION 3.17)
+# New in version 3.19: An interface library target may be created with source files:
+cmake_minimum_required(VERSION 3.19)
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 project(losync)
 
@@ -13,5 +16,6 @@ endif()
 
 option(LOSYNC_ENABLE_TESTS "Build Losync test binaries" OFF)
 if(LOSYNC_ENABLE_TESTS)
+    enable_testing()
     add_subdirectory(tests)
 endif()

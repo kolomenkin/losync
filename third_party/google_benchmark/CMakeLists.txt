@@ -1,4 +1,5 @@
 # CUSTOM CMake file for Losync project:
+set(CMAKE_FOLDER "third_party")
 
 set(PROJECT_NAME "GBenchamark")
 set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
