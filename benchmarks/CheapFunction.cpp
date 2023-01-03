@@ -1,16 +1,11 @@
 #include <losync/cheap_function.h>
 
+#include "BenchCommon.h"
+
 #include <benchmark/benchmark.h>
 
 #include <functional>
 #include <memory>
-
-
-#ifdef _MSC_VER
-#define NOINLINE __declspec(noinline)
-#else
-#define NOINLINE [[gnu::noinline]]
-#endif
 
 
 using namespace losync;
