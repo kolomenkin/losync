@@ -22,7 +22,7 @@ public:
     cheap_function(const cheap_function&) = delete;
 
     template <typename TRef>
-    explicit cheap_function(TRef&& obj)
+    cheap_function(TRef&& obj)
     {
         static_assert(std::is_invocable<TRef, Args...>::value,
                       "Provided object is not callable or it has incompatible arguments");
@@ -47,7 +47,7 @@ public:
     }
 
     template <typename T2>
-    explicit cheap_function(cheap_function<T2>&& b)
+    cheap_function(cheap_function<T2>&& b)
     {
         // This function prevents wrapping of cheap_function<T> into cheap_function<U>
         // and gives informative error in case of mistake
@@ -55,7 +55,7 @@ public:
     }
 
     template <>
-    explicit cheap_function(cheap_function&& b)
+    cheap_function(cheap_function&& b)
     {
         b.getWrapper()->placement_move_self(getWrapper());
     }
@@ -114,7 +114,7 @@ public:
         return *this;
     }
 
-    Ret operator()(Args&&... args) const
+    Ret operator()(Args... args) const
     {
         return getWrapper()->call(std::forward<Args>(args)...);
     }
@@ -125,7 +125,7 @@ private:
     public:
         virtual ~WrapperBase() = default;
         virtual void placement_move_self(WrapperBase* destination) = 0;
-        virtual Ret call(Args&&... args) const = 0;
+        virtual Ret call(Args... args) const = 0;
     };
 
     template <typename T>
@@ -142,7 +142,7 @@ private:
             new (destinationPtr) Wrapper(std::move(wrapped_value));
         }
 
-        virtual Ret call(Args&&... args) const override
+        virtual Ret call(Args... args) const override
         {
             return wrapped_value(std::forward<Args>(args)...);
         }
