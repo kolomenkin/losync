@@ -1,11 +1,11 @@
 add_subdirectory(../third_party/google_benchmark gbenchmark)
 
-set(CMAKE_FOLDER "benchmarks")
+set(CMAKE_FOLDER "${LOSYNC_FOLDER}benchmarks")
 
 file(GLOB ALL_SOURCES *.cpp)
 
 foreach(file ${ALL_SOURCES})
-    STRING(REGEX REPLACE "^.+/([^/]+)\\.cpp$" "LosyncBench\\1" TARGET ${file})
+    STRING(REGEX REPLACE "^.+/([^/]+)\\.cpp$" "LosyncBm\\1" TARGET ${file})
 
     file(GLOB HEADERS *.h)
     set(SOURCES ${file})

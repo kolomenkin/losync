@@ -1,5 +1,5 @@
 # CUSTOM CMake file for Losync project:
-set(CMAKE_FOLDER "third_party")
+set(CMAKE_FOLDER "${LOSYNC_FOLDER}third_party")
 
 set(TARGET gtest)
 

@@ -3,6 +3,12 @@ cmake_minimum_required(VERSION 3.19)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+if(CMAKE_FOLDER)
+    set(LOSYNC_FOLDER "${CMAKE_FOLDER}/")
+else()
+    set(LOSYNC_FOLDER "")
+endif()
+
 project(losync)
 
 include(cmake/compiler.cmake)
