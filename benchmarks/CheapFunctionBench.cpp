@@ -13,6 +13,9 @@
 #endif
 
 
+using namespace losync;
+
+
 int globalValue = 123;
 
 NOINLINE static int StdFuncFastInt(const std::function<int(int)>& func, const int value)

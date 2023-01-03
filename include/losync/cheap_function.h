@@ -12,6 +12,9 @@
 #include <type_traits>
 
 
+namespace losync
+{
+
 template <typename T>
 class cheap_function;
 
@@ -171,3 +174,5 @@ private:
 
     alignas(alignValue) char wrapperBuffer[sizeOfWrapperBuffer];
 };
+
+} // namespace losync

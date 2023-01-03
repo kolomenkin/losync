@@ -5,6 +5,9 @@
 #include <memory>
 
 
+using namespace losync;
+
+
 TEST(CheapFunction, Construct)
 {
     int callCount = 0;
