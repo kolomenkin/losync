@@ -9,4 +9,5 @@ BasedOnStyle:    Microsoft
 AccessModifierOffset: -4
 AlwaysBreakTemplateDeclarations: Yes
 ColumnLimit: 120
+MaxEmptyLinesToKeep: 2
 PointerAlignment: Left

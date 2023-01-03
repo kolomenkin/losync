@@ -11,8 +11,10 @@
 #include <cstddef>
 #include <type_traits>
 
+
 template <typename T>
 class cheap_function;
+
 
 template <typename Ret, typename... Args>
 class cheap_function<Ret(Args...)>
