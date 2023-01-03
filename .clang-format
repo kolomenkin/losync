@@ -1,0 +1,12 @@
+# Run manually to reformat a file:
+# clang-format -i --style=file <file>
+# https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+# https://zed0.co.uk/clang-format-configurator/
+
+Language:        Cpp
+BasedOnStyle:    Microsoft
+
+AccessModifierOffset: -4
+AlwaysBreakTemplateDeclarations: Yes
+ColumnLimit: 120
+PointerAlignment: Left
