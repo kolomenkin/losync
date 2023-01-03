@@ -17,42 +17,22 @@ public:
     template<typename TRef, typename = std::enable_if_t<std::is_invocable<TRef, Args...>::value>>
     explicit cheap_function(TRef&& obj)
     {
+        static_assert(std::is_move_constructible<TRef>::value);
         static_assert(!std::is_const<TRef>::value, "Don't pass const object to cheap_function<> constructor");
         static_assert(!std::is_lvalue_reference<TRef>::value, "It seems you forgot to wrap cheap_function<> constructor argument with std::move");
+
         using T = typename std::remove_reference<TRef>::type;
+        using ActualWrapper = Wrapper<T>;
 
-        class Controller : public IController
-        {
-        public:
-            virtual void move_construct(void* that, void* b) override
-            {
-                T* const thatPtr = static_cast<T*>(that);
-                T* const thatB = static_cast<T*>(b);
-                new (thatPtr) T(std::move(*thatB));
-            }
-            virtual void destroy_object(void* that) override
-            {
-                T* const thatPtr = static_cast<T*>(that);
-                thatPtr->~T();
-            }
-            virtual Ret call(const void* that, Args&&...args) const override
-            {
-                const T* const thatPtr = static_cast<const T*>(that);
-                return (*thatPtr)(std::forward<Args>(args)...);
-            }
-        };
+        static_assert(sizeof(T) <= sizeOfWrapperBuffer);
+        static_assert(static_cast<WrapperBase*>(static_cast<ActualWrapper*>(nullptr)) == nullptr,
+            "ActualWrapper pointer is expected to be binary equal to its interface pointer");
 
-        static_assert(sizeof(Controller) == sizeof(controllerBuffer), "The only expected data in Destroyer is the pointer to a virtual table");
-        static_assert(static_cast<IController*>(static_cast<Controller*>(nullptr)) == nullptr,
-            "Interface pointer is expected to be binary equal to the object pointer when we have only one inheritance");
-        Controller* const controller = reinterpret_cast<Controller*>(&controllerBuffer);
-        new (controller) Controller;
-
-        static_assert(sizeof(T) <= sizeOfBuffer);
-        controller->move_construct(&buffer[0], &obj);
+        ActualWrapper* const wrapper = reinterpret_cast<ActualWrapper*>(&wrapperBuffer);
+        new (wrapper) ActualWrapper(std::move(obj));
     }
 
-    template <typename T2>
+    template<typename T2>
     explicit cheap_function(cheap_function<T2>&& b)
     {
         // This function prevents wrapping of cheap_function<T> into cheap_function<U> during construction
@@ -60,21 +40,15 @@ public:
         static_assert(false, "Cannot convert different specializations of cheap_function template");
     }
 
-    template <>
+    template<>
     explicit cheap_function(cheap_function&& b)
     {
-        controllerBuffer = b.controllerBuffer;
-        b.getController()->move_construct(&buffer[0], &b.buffer[0]);
-        b.controllerBuffer = nullptr;
+        b.getWrapper()->placement_move_self(getWrapper());
     }
 
     ~cheap_function()
     {
-        if (controllerBuffer)
-        {
-            getController()->destroy_object(&buffer[0]);
-            controllerBuffer = nullptr; // this is optional
-        }
+        getWrapper()->~WrapperBase();
     }
 
     cheap_function& operator=(const cheap_function&) = delete;
@@ -82,45 +56,70 @@ public:
     {
         if (this != &b)
         {
-            getController()->destroy_object(&buffer[0]);
-            controllerBuffer = b.controllerBuffer;
-            b.getController()->move_construct(&buffer[0], &b.buffer[0]);
-            b.controllerBuffer = nullptr;
+            getWrapper()->~WrapperBase();
+            b.getWrapper()->placement_move_self(getWrapper());
         }
         return *this;
     }
 
     Ret operator()(Args&&...args) const
     {
-        return getController()->call(&buffer[0], std::forward<Args>(args)...);
+        return getWrapper()->call(std::forward<Args>(args)...);
     }
 
 private:
-    class IController
+    class WrapperBase
     {
     public:
-        virtual void move_construct(void* that, void* b) = 0;
-        virtual void destroy_object(void* that) = 0;
-        virtual Ret call(const void* that, Args&&...args) const = 0;
+        virtual ~WrapperBase() = default;
+        virtual void placement_move_construct_value(WrapperBase* place, void* value) = 0;
+        virtual void placement_move_self(WrapperBase* place) = 0;
+        virtual Ret call(Args&&...args) const = 0;
     };
 
-    IController* getController()
+    template<typename T>
+    class Wrapper: public WrapperBase
     {
-        return reinterpret_cast<IController*>(&controllerBuffer);
+    public:
+        explicit Wrapper(T&& value): wrapped_value(std::move(value))
+        {
+        }
+
+        virtual void placement_move_construct_value(WrapperBase* place, void* value) override
+        {
+            Wrapper* const placePtr = static_cast<Wrapper*>(place);
+            T* const valuePtr = static_cast<T*>(value);
+            new (placePtr) T(std::move(*valuePtr));
+        }
+
+        virtual void placement_move_self(WrapperBase* place) override
+        {
+            Wrapper* const placePtr = static_cast<Wrapper*>(place);
+            new (placePtr) Wrapper(std::move(wrapped_value));
+        }
+
+        virtual Ret call(Args&&...args) const override
+        {
+            return wrapped_value(std::forward<Args>(args)...);
+        }
+    private:
+        T wrapped_value;
+    };
+
+    constexpr WrapperBase* getWrapper()
+    {
+        return reinterpret_cast<WrapperBase*>(&wrapperBuffer);
     }
 
-    const IController* getController() const
+    constexpr const WrapperBase* getWrapper() const
     {
-        return reinterpret_cast<const IController*>(&controllerBuffer);
+        return reinterpret_cast<const WrapperBase*>(&wrapperBuffer);
     }
 
 private:
     constexpr static size_t alignValue = alignof(std::max_align_t);
-    constexpr static size_t sizeOfBuffer = 64;
-    static_assert(sizeOfBuffer% alignValue == 0, "sizeOfBuffer should be greater and a multiple of alignValue");
+    constexpr static size_t sizeOfWrapperBuffer = 256;
+    static_assert(sizeOfWrapperBuffer % alignValue == 0, "sizeOfBuffer should be greater and a multiple of alignValue to optimize memory usage");
 
-    void* controllerBuffer; // virtual table pointer
-
-    alignas(alignValue)
-        char buffer[sizeOfBuffer];
+    alignas(alignValue) char wrapperBuffer[sizeOfWrapperBuffer];
 };
