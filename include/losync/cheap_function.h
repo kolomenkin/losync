@@ -13,13 +13,13 @@ public:
     cheap_function() = delete;
     cheap_function(const cheap_function&) = delete;
 
-    template <typename TRef, typename = std::enable_if_t<std::is_invocable<TRef, Args...>::value>>
+    template <typename TRef, typename = std::enable_if_t<std::is_invocable<TRef, Args...>::value>,
+              typename = std::enable_if_t<std::is_same<typename std::invoke_result<TRef, Args...>::type, Ret>::value>>
     explicit cheap_function(TRef&& obj)
     {
         static_assert(std::is_move_constructible<TRef>::value);
-        static_assert(!std::is_const<TRef>::value, "Don't pass const object to cheap_function<> constructor");
-        static_assert(!std::is_lvalue_reference<TRef>::value,
-                      "It seems you forgot to wrap cheap_function<> constructor argument with std::move");
+        static_assert(!std::is_const<TRef>::value);
+        static_assert(!std::is_lvalue_reference<TRef>::value, "It seems you forgot to wrap argument with std::move");
 
         using T = typename std::remove_reference<TRef>::type;
         using ActualWrapper = Wrapper<T>;
@@ -27,6 +27,8 @@ public:
         static_assert(sizeof(T) <= sizeOfWrapperBuffer);
         static_assert(static_cast<WrapperBase*>(static_cast<ActualWrapper*>(nullptr)) == nullptr,
                       "ActualWrapper pointer is expected to be binary equal to its interface pointer");
+        static_assert(!std::is_same<T, cheap_function>::value,
+                      "ensure another specialization is used for cheap_function");
 
         ActualWrapper* const wrapper = reinterpret_cast<ActualWrapper*>(&wrapperBuffer);
         new (wrapper) ActualWrapper(std::move(obj));
@@ -35,7 +37,7 @@ public:
     template <typename T2>
     explicit cheap_function(cheap_function<T2>&& b)
     {
-        // This function prevents wrapping of cheap_function<T> into cheap_function<U> during construction
+        // This function prevents wrapping of cheap_function<T> into cheap_function<U>
         // and gives informative error in case of mistake
         static_assert(false, "Cannot convert different specializations of cheap_function template");
     }
@@ -52,6 +54,40 @@ public:
     }
 
     cheap_function& operator=(const cheap_function&) = delete;
+
+    template <typename TRef, typename = std::enable_if_t<std::is_invocable<TRef, Args...>::value>,
+              typename = std::enable_if_t<std::is_same<typename std::invoke_result<TRef, Args...>::type, Ret>::value>>
+    cheap_function& operator=(TRef&& obj)
+    {
+        static_assert(std::is_move_constructible<TRef>::value);
+        static_assert(!std::is_const<TRef>::value);
+        static_assert(!std::is_lvalue_reference<TRef>::value, "It seems you forgot to wrap argument with std::move");
+
+        using T = typename std::remove_reference<TRef>::type;
+        using ActualWrapper = Wrapper<T>;
+
+        static_assert(sizeof(T) <= sizeOfWrapperBuffer);
+        static_assert(static_cast<WrapperBase*>(static_cast<ActualWrapper*>(nullptr)) == nullptr,
+                      "ActualWrapper pointer is expected to be binary equal to its interface pointer");
+        static_assert(!std::is_same<T, cheap_function>::value,
+                      "ensure another specialization is used for cheap_function");
+
+        getWrapper()->~WrapperBase();
+        ActualWrapper* const wrapper = reinterpret_cast<ActualWrapper*>(&wrapperBuffer);
+        new (wrapper) ActualWrapper(std::move(obj));
+
+        return *this;
+    }
+
+    template <typename T2>
+    cheap_function& operator=(cheap_function<T2>&& b)
+    {
+        // This function prevents wrapping of cheap_function<T> into cheap_function<U>
+        // and gives informative error in case of mistake
+        static_assert(false, "Cannot convert different specializations of cheap_function template");
+    }
+
+    template <>
     cheap_function& operator=(cheap_function&& b)
     {
         if (this != &b)
@@ -72,8 +108,7 @@ private:
     {
     public:
         virtual ~WrapperBase() = default;
-        virtual void placement_move_construct_value(WrapperBase* place, void* value) = 0;
-        virtual void placement_move_self(WrapperBase* place) = 0;
+        virtual void placement_move_self(WrapperBase* destination) = 0;
         virtual Ret call(Args&&... args) const = 0;
     };
 
@@ -85,17 +120,10 @@ private:
         {
         }
 
-        virtual void placement_move_construct_value(WrapperBase* place, void* value) override
+        virtual void placement_move_self(WrapperBase* destination) override
         {
-            Wrapper* const placePtr = static_cast<Wrapper*>(place);
-            T* const valuePtr = static_cast<T*>(value);
-            new (placePtr) T(std::move(*valuePtr));
-        }
-
-        virtual void placement_move_self(WrapperBase* place) override
-        {
-            Wrapper* const placePtr = static_cast<Wrapper*>(place);
-            new (placePtr) Wrapper(std::move(wrapped_value));
+            Wrapper* const destinationPtr = static_cast<Wrapper*>(destination);
+            new (destinationPtr) Wrapper(std::move(wrapped_value));
         }
 
         virtual Ret call(Args&&... args) const override
