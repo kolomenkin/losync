@@ -5,3 +5,5 @@
 #else
 #define NOINLINE [[gnu::noinline]]
 #endif
+
+#define CACHE_ALIGNED alignas(std::hardware_destructive_interference_size)
